@@ -15,12 +15,26 @@
         android:text="@string/button_connect_to_device"
         android:id="@+id/btnConnect"
         android:onClick="btnConnect_onClick"/>
-
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:textSize="24pt"
-        android:id="@+id/lblHeartRate"/>
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24pt"
+            android:text="@string/default_heart_rate_value"
+            android:id="@+id/lblHeartRate"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24pt"
+            android:text="@string/label_heart_rate_units"
+            android:id="@+id/lblHeartRateUnits"
+            android:layout_marginLeft="10pt"/>
+    </LinearLayout>
 
     <com.androidplot.xy.XYPlot
         android:id="@+id/sensorPlot"
@@ -28,9 +42,4 @@
         android:layout_height="fill_parent"
         android:layout_weight="1"/>
 
-    <com.androidplot.xy.XYPlot
-        android:id="@+id/fftPlot"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_weight="1"/>
 </LinearLayout>

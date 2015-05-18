@@ -1,12 +1,8 @@
 package com.richanna.bluetoothheartratemonitor.app;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattService;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -20,44 +16,41 @@ import com.androidplot.ui.TextOrientationType;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.XYPlot;
 import com.richanna.bluetoothheartratemonitor.R;
+import com.richanna.bluetoothheartratemonitor.service.MonitorService;
 import com.richanna.data.DataPoint;
+import com.richanna.data.DataProvider;
 import com.richanna.data.DataProviderBase;
-import com.richanna.data.DataWindow;
-import com.richanna.data.filters.DemeanFilter;
-import com.richanna.data.filters.FftFilter;
+import com.richanna.data.filters.SlidingWindowAverageFilter;
+import com.richanna.data.filters.ZeroCrossingFinder;
 import com.richanna.data.visualization.DataSeries;
 import com.richanna.data.visualization.StreamingSeries;
-import com.richanna.data.visualization.WindowedSeries;
 import com.richanna.events.Listener;
-
-import java.util.Set;
-import java.util.UUID;
 
 
 public class MainActivity extends ActionBarActivity {
   private static final String TAG = "MainActivity";
 
-  private static final String DEVICE_NAME = "richanna<3mon";
-  private static final UUID UUID_SERVICE = UUID.fromString("00002220-0000-1000-8000-00805F9B34FB");
-  private static final UUID UUID_RECEIVE = UUID.fromString("00002221-0000-1000-8000-00805F9B34FB");
-  private static final UUID UUID_CLIENT_CONFIGURATION = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB");
-
   private static final int REQUEST_ENABLE_BLUETOOTH = 1;
 
-  private static final int FFT_WINDOW_SIZE = 256;
-  private static final float MAX_HEART_RATE_HZ = 4.0f;
-
   private BluetoothAdapter bluetoothAdapter;
-  private BluetoothGatt bluetoothGatt;
-  private BluetoothGattCharacteristic readCharacteristic;
-  private final BluetoothGattCallback gattCallback = new MonitorGattCallback();
+  private BroadcastReceiver monitorServiceReceiver = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      final String action = intent.getAction();
+      switch (action) {
+        case MonitorService.ACTION_BLUETOOTH_DISABLED:
+          promptToEnableBluetooth();
+          break;
+        case MonitorService.ACTION_DATA_AVAILABLE:
+          pulseSensor.readSensorValue(intent);
+          break;
+      }
+    }
+  };
 
   private TextView lblHeartRate;
   private XYPlot sensorPlot;
-  private XYPlot fftPlot;
   private PulseSensorMonitor pulseSensor = new PulseSensorMonitor();
-  private DemeanFilter demeanFilter;
-  private FftFilter fftFilter;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -71,80 +64,76 @@ public class MainActivity extends ActionBarActivity {
       Log.i(TAG, "BT: Device does not support Bluetooth. :(");
     }
 
-    sensorPlot = initializePlot(R.id.sensorPlot);
-    fftPlot = initializePlot(R.id.fftPlot);
-
-    demeanFilter = new DemeanFilter(50, pulseSensor);
-    fftFilter = new FftFilter(FFT_WINDOW_SIZE, demeanFilter);
-    fftFilter.addOnNewDatumListener(new Listener<DataWindow<DataPoint<Float>>>() {
+    final DataProvider<DataPoint<Long>> bpmProvider =
+        new SlidingWindowAverageFilter(10,
+            new ZeroCrossingFinder(50, pulseSensor)
+        );
+    bpmProvider.addOnNewDatumListener(new Listener<DataPoint<Long>>() {
       @Override
-      public void tell(final DataWindow<DataPoint<Float>> eventData) {
-        final float timespan = (float) (eventData.getEndTime() - eventData.getStartTime()) / 1000000000f;
-        final float sampleRate = (float) FFT_WINDOW_SIZE / timespan;
-        final float rateStep = (sampleRate / 2.0f) / (float) eventData.getSize();
-
-        Log.d("MonitorActivity", String.format("Sample rate: %f", sampleRate));
-        int maxIndex = 0;
-        float maxValue = 0;
-        int index = 0;
-        for (final DataPoint<Float> dataPoint : eventData.getData()) {
-          if (index * rateStep > MAX_HEART_RATE_HZ) {
-            break;
-          }
-
-          if (dataPoint.getValue() > maxValue) {
-            maxIndex = index;
-            maxValue = dataPoint.getValue();
-          }
-
-          index += 1;
-        }
-
-        final float frequency = (float) maxIndex * rateStep;
-        final int bpm = (int) (frequency * 60.0f);
+      public void tell(final DataPoint<Long> eventData) {
         runOnUiThread(new Runnable() {
           @Override
           public void run() {
-            lblHeartRate.setText(Integer.toString(bpm));
-            fftPlot.redraw();
+            final long bpm = 60000 / eventData.getValue();
+            Log.d(TAG, String.format("BPM: %d", bpm));
+            if (bpm < 30 || bpm > 240) {
+              lblHeartRate.setText(getResources().getString(R.string.default_heart_rate_value));
+            } else {
+              lblHeartRate.setText(Long.toString(bpm));
+            }
           }
         });
       }
     });
 
-    final StreamingSeries sensorSeries = new StreamingSeries(demeanFilter, "Pulse Sensor", R.xml.line_formatting_sensor_plot, getResources().getInteger(R.integer.max_points_sensor_plot));
+    sensorPlot = initializePlot(R.id.sensorPlot);
+    final StreamingSeries sensorSeries = new StreamingSeries(pulseSensor, "Pulse Sensor", R.xml.line_formatting_sensor_plot, getResources().getInteger(R.integer.max_points_sensor_plot));
+    addSeriesToPlot(sensorPlot, sensorSeries);
     sensorSeries.onSeriesUpdated.listen(new Listener<DataSeries>() {
       @Override
       public void tell(DataSeries eventData) {
         sensorPlot.redraw();
       }
     });
+  }
 
-    addSeriesToPlot(sensorPlot, sensorSeries);
-    addSeriesToPlot(fftPlot, new WindowedSeries(fftFilter, "FFT", R.xml.line_formatting_sensor_plot));
+  @Override
+  protected void onStart() {
+    super.onStart();
+    registerReceiver(monitorServiceReceiver, MonitorService.getIntentFilter());
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    if (bluetoothGatt != null) {
-      connectToDevice();
-    }
+    Log.d(TAG, "Starting monitor svc from resume.");
+    startMonitorService();
   }
 
   @Override
-  protected void onPause() {
-    super.onPause();
-    if (bluetoothGatt != null) {
-      bluetoothGatt.disconnect();
-    }
+  protected void onStop() {
+    super.onStop();
+    unregisterReceiver(monitorServiceReceiver);
+  }
+
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    final Intent intent = new Intent(this, MonitorService.class);
+    stopService(intent);
   }
 
   @Override
   protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
     switch (requestCode) {
       case REQUEST_ENABLE_BLUETOOTH:
-        connectToDevice();
+        if (resultCode == RESULT_OK) {
+          Log.i(TAG, "Bluetooth enabled, starting service.");
+          startMonitorService();
+        } else {
+          Log.i(TAG, "Bluetooth not enabled, cannot connect to device.");
+        }
+        break;
       default:
         Log.w(TAG, String.format("Unrecognized request code in onActivityResult: %d", requestCode));
     }
@@ -172,6 +161,11 @@ public class MainActivity extends ActionBarActivity {
     return super.onOptionsItemSelected(item);
   }
 
+  private void startMonitorService() {
+    final Intent intent = new Intent(this, MonitorService.class);
+    startService(intent);
+  }
+
   private XYPlot initializePlot(final int plotId) {
     final XYPlot plot = (XYPlot) findViewById(plotId);
     plot.centerOnRangeOrigin(0);
@@ -191,102 +185,23 @@ public class MainActivity extends ActionBarActivity {
     plot.addSeries(series, formatter);
   }
 
+  private void promptToEnableBluetooth() {
+    Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+    startActivityForResult(enableBluetooth, REQUEST_ENABLE_BLUETOOTH);
+  }
+
   public void btnConnect_onClick(View view) {
     if (!bluetoothAdapter.isEnabled()) {
-      Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-      startActivityForResult(enableBluetooth, REQUEST_ENABLE_BLUETOOTH);
+      promptToEnableBluetooth();
     } else {
-      connectToDevice();
-    }
-  }
-
-  private void connectToDevice() {
-    if (bluetoothGatt == null) {
-      final Set<BluetoothDevice> devices = bluetoothAdapter.getBondedDevices();
-      Log.d(TAG, String.format("BT: Found %d paired devices.", devices.size()));
-      for (final BluetoothDevice device : devices) {
-        Log.d(TAG, String.format("%s: %s", device.getName(), device.getAddress()));
-        if (DEVICE_NAME.equals(device.getName())) {
-          Log.d(TAG, "Attempting to connect to monitor...");
-          bluetoothGatt = device.connectGatt(this, false, gattCallback);
-        }
-      }
-    } else {
-      Log.d(TAG, "Attempting to resume connection to monitor...");
-      if (bluetoothGatt.connect()) {
-        Log.d(TAG, "Connection resumed.");
-      } else {
-        Log.d(TAG, "Failed to resume connection.");
-        try {
-          bluetoothGatt.close();
-        } finally {
-          bluetoothGatt = null;
-        }
-      }
-    }
-  }
-
-  private class MonitorGattCallback extends BluetoothGattCallback {
-    @Override
-    public void onConnectionStateChange(final BluetoothGatt gatt, final int status, final int newState) {
-      if (newState == BluetoothGatt.STATE_CONNECTED) {
-        Log.d(TAG, "Discovering services...");
-        gatt.discoverServices();
-      } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-        Log.d(TAG, "Disconnected.");
-        try {
-          gatt.disconnect();
-          gatt.close();
-        } finally {
-          MainActivity.this.bluetoothGatt = null;
-        }
-      }
-    }
-
-    @Override
-    public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
-      if (status == BluetoothGatt.GATT_SUCCESS) {
-        Log.d(TAG, "Found service, setting up read notifications...");
-        final BluetoothGattService service = gatt.getService(UUID_SERVICE);
-        MainActivity.this.readCharacteristic = service.getCharacteristic(UUID_RECEIVE);
-        if (MainActivity.this.readCharacteristic != null) {
-          final BluetoothGattDescriptor descriptor = MainActivity.this.readCharacteristic.getDescriptor(UUID_CLIENT_CONFIGURATION);
-          if (descriptor != null) {
-            gatt.setCharacteristicNotification(MainActivity.this.readCharacteristic, true);
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            gatt.writeDescriptor(descriptor);
-            Log.d(TAG, "Starting to read.");
-            gatt.readCharacteristic(MainActivity.this.readCharacteristic);
-          } else {
-            Log.w(TAG, "Client Configuration descriptor not found.");
-          }
-        } else {
-          Log.w(TAG, "Read characteristic not found.");
-        }
-      }
-    }
-
-    @Override
-    public void onCharacteristicRead(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic, final int status) {
-      if (status == BluetoothGatt.GATT_SUCCESS) {
-        Log.d(TAG, String.format("Got characteristic read: %s", characteristic.getUuid()));
-        pulseSensor.readBluetoothValue(characteristic);
-      }
-    }
-
-    @Override
-    public void onCharacteristicChanged(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {
-      Log.d(TAG, String.format("Characteristic changed: %s", characteristic.getUuid()));
-      pulseSensor.readBluetoothValue(characteristic);
+      startMonitorService();
     }
   }
 
   private static class PulseSensorMonitor extends DataProviderBase<DataPoint<Float>> {
-
-    public void readBluetoothValue(final BluetoothGattCharacteristic characteristic) {
-      final int value = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, 0);
-      Log.d(TAG, String.format("Input length: %d; value: %d", characteristic.getValue().length, value));
-      final DataPoint<Float> dataPoint = new DataPoint<>(System.nanoTime(), (float)value);
+    public void readSensorValue(final Intent intent) {
+      final float value = intent.getFloatExtra(MonitorService.KEY_SENSOR_VALUE, 0);
+      final DataPoint<Float> dataPoint = new DataPoint<>(System.nanoTime(), value);
       provideDatum(dataPoint);
     }
   }

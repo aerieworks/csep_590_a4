@@ -4,4 +4,6 @@
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="button_connect_to_device">Connect</string>
+    <string name="label_heart_rate_units">bpm</string>
+    <string name="default_heart_rate_value">--</string>
 </resources>

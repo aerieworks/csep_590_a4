@@ -1,14 +1,20 @@
 #include <RFduinoBLE.h>
 
-const int sensorPin = 6;
+const int SENSOR_PIN = 6;
+const unsigned int WINDOW_SIZE = 8;
 const unsigned int READ_DELAY = 10;
 
-volatile unsigned int sensorValue = 0;
-volatile unsigned long lastReadTime = 0;
-volatile unsigned long currentTime = 0;
-volatile bool connected = false;
+bool connected = false;
+
+unsigned int window[WINDOW_SIZE];
+unsigned int windowIndex = 0;
+unsigned int windowTotal = 0;
 
 void setup() {
+  for (int i = 0; i < WINDOW_SIZE; i++) {
+    window[i] = 0;
+  }
+  
   Serial.begin(2400);
   
   RFduinoBLE.deviceName = "richanna<3mon";
@@ -17,16 +23,21 @@ void setup() {
 }
 
 void loop() {
-  // Stay in ultra-low power mode.
-  //RFduino_ULPDelay(INFINITE);
   if (connected) {
-    sensorValue = analogRead(sensorPin);
-    Serial.print(millis());
-    Serial.print(":\t");
-    Serial.println(sensorValue);
-    RFduinoBLE.sendInt(sensorValue);
+    unsigned int sensorValue = analogRead(SENSOR_PIN);
+    float demeanedValue = getDemeanedValue(sensorValue);
+    RFduinoBLE.sendFloat(demeanedValue);
+    Serial.println(demeanedValue);
   }
+  
   delay(READ_DELAY);
+}
+
+float getDemeanedValue(unsigned int sensorValue) {
+  windowTotal += sensorValue - window[windowIndex];
+  window[windowIndex] = sensorValue;
+  windowIndex = (windowIndex + 1) % WINDOW_SIZE;
+  return (float)sensorValue - ((float)windowTotal / (float)WINDOW_SIZE);
 }
 
 void RFduinoBLE_onAdvertisement(bool start) {
@@ -39,12 +50,10 @@ void RFduinoBLE_onAdvertisement(bool start) {
 
 void RFduinoBLE_onConnect() {
   connected = true;
-  //interruptSetup();
   Serial.println("Connected.");
 }
 
 void RFduinoBLE_onDisconnect() {
-  //cli();
   connected = false;
   Serial.println("Disconnected.");
 }

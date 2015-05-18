@@ -7,6 +7,12 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
+
+        <service
+            android:name=".service.MonitorService"
+            android:exported="false"
+            android:process=":bluetoothMonitorService"/>
+
         <activity
             android:name=".app.MainActivity"
             android:label="@string/app_name" >
