@@ -9,7 +9,7 @@ public class DataProviderBase<T> implements DataProvider<T> {
 
   private static final String TAG = "DataProviderBase";
 
-  private Event<T> newDatumEvent = new Event<>();
+  private final Event<T> newDatumEvent = new Event<>();
 
   protected void provideDatum(final T datum) {
     newDatumEvent.fire(datum);

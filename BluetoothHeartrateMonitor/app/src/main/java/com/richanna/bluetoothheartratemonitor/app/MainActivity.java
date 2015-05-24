@@ -81,7 +81,7 @@ public class MainActivity extends ActionBarActivity {
       }
     });
 
-    sensorPlot = initializePlot(R.id.sensorPlot);
+    sensorPlot = initializeSensorPlot();
     final StreamingSeries sensorSeries = new StreamingSeries(monitorDataSource, "Pulse Sensor", R.xml.line_formatting_sensor_plot, getResources().getInteger(R.integer.max_points_sensor_plot));
     addSeriesToPlot(sensorPlot, sensorSeries);
     sensorSeries.onSeriesUpdated.listen(new Listener<DataSeries>() {
@@ -160,8 +160,8 @@ public class MainActivity extends ActionBarActivity {
     });
   }
 
-  private XYPlot initializePlot(final int plotId) {
-    final XYPlot plot = (XYPlot) findViewById(plotId);
+  private XYPlot initializeSensorPlot() {
+    final XYPlot plot = (XYPlot) findViewById(R.id.sensorPlot);
     plot.centerOnRangeOrigin(0);
     plot.setTicksPerRangeLabel(3);
     plot.getGraphWidget().setDomainLabelPaint(null);

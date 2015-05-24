@@ -26,8 +26,8 @@ public class BpmCalculator extends DataProviderBase<DataPoint<Long>> implements 
     if (bpm < MIN_BPM || bpm > MAX_BPM) {
       bpm = null;
     }
-    if (bpm != previousBpm) {
-      Log.i(TAG, String.format("BPM changed from %d to %d.", previousBpm == null ? 0 : previousBpm, bpm));
+    if ((bpm == null && previousBpm != null) || (bpm != null && !bpm.equals(previousBpm))) {
+      Log.i(TAG, String.format("BPM changed from %d to %d.", previousBpm == null ? 0 : previousBpm, bpm == null ? 0 : bpm));
       previousBpm = bpm;
       final DataPoint<Long> dataPoint = new DataPoint<>(System.nanoTime(), bpm);
       provideDatum(dataPoint);

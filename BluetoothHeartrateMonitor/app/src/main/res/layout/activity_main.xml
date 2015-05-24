@@ -23,7 +23,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_toRightOf="@id/lblHeartRate"
+        android:layout_toEndOf="@id/lblHeartRate"
         android:textSize="24pt"
         android:text="@string/label_heart_rate_units"
         android:id="@+id/lblHeartRateUnits"
@@ -42,8 +42,8 @@
             android:layout_height="fill_parent"
             android:layout_alignTop="@id/sensorPlot"
             android:layout_alignBottom="@id/sensorPlot"
-            android:layout_alignLeft="@id/sensorPlot"
-            android:layout_alignRight="@id/sensorPlot"
+            android:layout_alignStart="@id/sensorPlot"
+            android:layout_alignEnd="@id/sensorPlot"
             android:background="#88000000"
             android:visibility="gone">
 
