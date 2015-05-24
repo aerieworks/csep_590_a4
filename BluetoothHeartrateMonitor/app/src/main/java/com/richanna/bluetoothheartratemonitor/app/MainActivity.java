@@ -1,8 +1,6 @@
 package com.richanna.bluetoothheartratemonitor.app;
 
 import android.bluetooth.BluetoothAdapter;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -10,16 +8,16 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.androidplot.ui.TextOrientationType;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.XYPlot;
 import com.richanna.bluetoothheartratemonitor.R;
-import com.richanna.bluetoothheartratemonitor.service.MonitorService;
 import com.richanna.data.DataPoint;
 import com.richanna.data.DataProvider;
-import com.richanna.data.DataProviderBase;
 import com.richanna.data.filters.SlidingWindowAverageFilter;
 import com.richanna.data.filters.ZeroCrossingFinder;
 import com.richanna.data.visualization.DataSeries;
@@ -32,25 +30,15 @@ public class MainActivity extends ActionBarActivity {
 
   private static final int REQUEST_ENABLE_BLUETOOTH = 1;
 
-  private BluetoothAdapter bluetoothAdapter;
-  private BroadcastReceiver monitorServiceReceiver = new BroadcastReceiver() {
-    @Override
-    public void onReceive(Context context, Intent intent) {
-      final String action = intent.getAction();
-      switch (action) {
-        case MonitorService.ACTION_BLUETOOTH_DISABLED:
-          promptToEnableBluetooth();
-          break;
-        case MonitorService.ACTION_DATA_AVAILABLE:
-          pulseSensor.readSensorValue(intent);
-          break;
-      }
-    }
-  };
-
   private TextView lblHeartRate;
+  private RelativeLayout pnlStatus;
+  private TextView lblStatus;
+  private Button btnEnable;
+  private Button btnConnect;
   private XYPlot sensorPlot;
-  private PulseSensorMonitor pulseSensor = new PulseSensorMonitor();
+
+  private MonitorDataSource monitorDataSource;
+  private ZeroCrossingFinder zeroCrossingFinder;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -58,28 +46,35 @@ public class MainActivity extends ActionBarActivity {
     setContentView(R.layout.activity_main);
 
     lblHeartRate = (TextView)findViewById(R.id.lblHeartRate);
+    pnlStatus = (RelativeLayout)findViewById(R.id.pnlStatus);
+    lblStatus = (TextView)findViewById(R.id.lblStatus);
+    btnEnable = (Button)findViewById(R.id.btnEnable);
+    btnConnect = (Button)findViewById(R.id.btnConnect);
 
-    bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-    if (bluetoothAdapter == null) {
-      Log.i(TAG, "BT: Device does not support Bluetooth. :(");
-    }
+    monitorDataSource = new MonitorDataSource(this, new MonitorDataSource.StatusCallback() {
+      @Override
+      public void onStatusChange(int status) {
+        setStatus(status);
+      }
+    });
+    zeroCrossingFinder = new ZeroCrossingFinder(0.5f, 200, monitorDataSource);
 
-    final DataProvider<DataPoint<Long>> bpmProvider =
-        new SlidingWindowAverageFilter(10,
-            new ZeroCrossingFinder(50, pulseSensor)
-        );
-    bpmProvider.addOnNewDatumListener(new Listener<DataPoint<Long>>() {
+    final DataProvider<DataPoint<Long>> bpmCalculator = new BpmCalculator(
+        new SlidingWindowAverageFilter(10, zeroCrossingFinder)
+    );
+    bpmCalculator.addOnNewDatumListener(new Listener<DataPoint<Long>>() {
       @Override
       public void tell(final DataPoint<Long> eventData) {
         runOnUiThread(new Runnable() {
           @Override
           public void run() {
-            final long bpm = 60000 / eventData.getValue();
-            Log.d(TAG, String.format("BPM: %d", bpm));
-            if (bpm < 30 || bpm > 240) {
+            final Long bpm = eventData.getValue();
+            if (bpm == null) {
               lblHeartRate.setText(getResources().getString(R.string.default_heart_rate_value));
+              setStatus(R.string.status_detecting_heart_rate);
             } else {
               lblHeartRate.setText(Long.toString(bpm));
+              setStatus(R.string.status_ok);
             }
           }
         });
@@ -87,7 +82,7 @@ public class MainActivity extends ActionBarActivity {
     });
 
     sensorPlot = initializePlot(R.id.sensorPlot);
-    final StreamingSeries sensorSeries = new StreamingSeries(pulseSensor, "Pulse Sensor", R.xml.line_formatting_sensor_plot, getResources().getInteger(R.integer.max_points_sensor_plot));
+    final StreamingSeries sensorSeries = new StreamingSeries(monitorDataSource, "Pulse Sensor", R.xml.line_formatting_sensor_plot, getResources().getInteger(R.integer.max_points_sensor_plot));
     addSeriesToPlot(sensorPlot, sensorSeries);
     sensorSeries.onSeriesUpdated.listen(new Listener<DataSeries>() {
       @Override
@@ -98,29 +93,16 @@ public class MainActivity extends ActionBarActivity {
   }
 
   @Override
-  protected void onStart() {
-    super.onStart();
-    registerReceiver(monitorServiceReceiver, MonitorService.getIntentFilter());
+  protected void onPause() {
+    super.onPause();
+    monitorDataSource.pause();
   }
 
   @Override
   protected void onResume() {
     super.onResume();
     Log.d(TAG, "Starting monitor svc from resume.");
-    startMonitorService();
-  }
-
-  @Override
-  protected void onStop() {
-    super.onStop();
-    unregisterReceiver(monitorServiceReceiver);
-  }
-
-  @Override
-  protected void onDestroy() {
-    super.onDestroy();
-    final Intent intent = new Intent(this, MonitorService.class);
-    stopService(intent);
+    monitorDataSource.resume();
   }
 
   @Override
@@ -129,7 +111,7 @@ public class MainActivity extends ActionBarActivity {
       case REQUEST_ENABLE_BLUETOOTH:
         if (resultCode == RESULT_OK) {
           Log.i(TAG, "Bluetooth enabled, starting service.");
-          startMonitorService();
+          monitorDataSource.resume();
         } else {
           Log.i(TAG, "Bluetooth not enabled, cannot connect to device.");
         }
@@ -161,9 +143,21 @@ public class MainActivity extends ActionBarActivity {
     return super.onOptionsItemSelected(item);
   }
 
-  private void startMonitorService() {
-    final Intent intent = new Intent(this, MonitorService.class);
-    startService(intent);
+  private void setStatus(final int statusId) {
+    if (statusId == R.string.status_detecting_heart_rate) {
+      zeroCrossingFinder.reset();
+    }
+
+    runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        pnlStatus.setVisibility(statusId == R.string.status_ok ? View.GONE : View.VISIBLE);
+        lblStatus.setText(getResources().getString(statusId));
+
+        btnEnable.setVisibility(statusId == R.string.status_bluetooth_disabled ? View.VISIBLE : View.GONE);
+        btnConnect.setVisibility(statusId == R.string.status_monitor_disconnected ? View.VISIBLE : View.GONE);
+      }
+    });
   }
 
   private XYPlot initializePlot(final int plotId) {
@@ -185,24 +179,12 @@ public class MainActivity extends ActionBarActivity {
     plot.addSeries(series, formatter);
   }
 
-  private void promptToEnableBluetooth() {
+  public void btnEnable_onClick(View view) {
     Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
     startActivityForResult(enableBluetooth, REQUEST_ENABLE_BLUETOOTH);
   }
 
   public void btnConnect_onClick(View view) {
-    if (!bluetoothAdapter.isEnabled()) {
-      promptToEnableBluetooth();
-    } else {
-      startMonitorService();
-    }
-  }
-
-  private static class PulseSensorMonitor extends DataProviderBase<DataPoint<Float>> {
-    public void readSensorValue(final Intent intent) {
-      final float value = intent.getFloatExtra(MonitorService.KEY_SENSOR_VALUE, 0);
-      final DataPoint<Float> dataPoint = new DataPoint<>(System.nanoTime(), value);
-      provideDatum(dataPoint);
-    }
+    monitorDataSource.resume();
   }
 }

@@ -6,4 +6,11 @@
     <string name="button_connect_to_device">Connect</string>
     <string name="label_heart_rate_units">bpm</string>
     <string name="default_heart_rate_value">--</string>
+    <string name="status_bluetooth_not_supported">Device does not support Bluetooth.</string>
+    <string name="status_bluetooth_disabled">Please enable Bluetooth.</string>
+    <string name="status_monitor_disconnected">Monitor disconnected.</string>
+    <string name="status_waiting_for_monitor">Waiting for monitor…</string>
+    <string name="status_detecting_heart_rate">Detecting heart rate…</string>
+    <string name="status_ok">OK</string>
+    <string name="button_enable_bluetooth">Enable</string>
 </resources>

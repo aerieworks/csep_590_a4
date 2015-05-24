@@ -1,4 +1,4 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
                 xmlns:tools="http://schemas.android.com/tools"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -7,39 +7,78 @@
                 android:paddingTop="@dimen/activity_vertical_margin"
                 android:paddingBottom="@dimen/activity_vertical_margin"
                 tools:context=".MainActivity"
-                android:orientation="vertical">
-
-    <Button
+                android:orientation="vertical"
+                android:background="@android:color/background_dark">
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/button_connect_to_device"
-        android:id="@+id/btnConnect"
-        android:onClick="btnConnect_onClick"/>
-    <LinearLayout
-        android:layout_width="fill_parent"
+        android:textSize="24pt"
+        android:text="@string/default_heart_rate_value"
+        android:id="@+id/lblHeartRate"
+        android:textColor="@android:color/primary_text_dark"
+        android:layout_marginRight="10pt"
+        android:layout_marginLeft="10pt"
+        android:layout_marginBottom="5pt"/>
+
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="24pt"
-            android:text="@string/default_heart_rate_value"
-            android:id="@+id/lblHeartRate"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="24pt"
-            android:text="@string/label_heart_rate_units"
-            android:id="@+id/lblHeartRateUnits"
-            android:layout_marginLeft="10pt"/>
-    </LinearLayout>
+        android:layout_toRightOf="@id/lblHeartRate"
+        android:textSize="24pt"
+        android:text="@string/label_heart_rate_units"
+        android:id="@+id/lblHeartRateUnits"
+        android:textColor="@android:color/primary_text_dark"/>
 
     <com.androidplot.xy.XYPlot
         android:id="@+id/sensorPlot"
+        android:layout_below="@id/lblHeartRate"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
-        android:layout_weight="1"/>
+        />
 
-</LinearLayout>
+    <RelativeLayout
+            android:id="@+id/pnlStatus"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_alignTop="@id/sensorPlot"
+            android:layout_alignBottom="@id/sensorPlot"
+            android:layout_alignLeft="@id/sensorPlot"
+            android:layout_alignRight="@id/sensorPlot"
+            android:background="#88000000"
+            android:visibility="gone">
+
+        <TextView
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:id="@+id/lblStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:textColor="@android:color/primary_text_dark"
+            android:textSize="14pt"
+            android:layout_marginBottom="10pt"
+            android:gravity="center_vertical|center_horizontal"
+            android:textAlignment="gravity"/>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/button_connect_to_device"
+            android:id="@+id/btnConnect"
+            android:onClick="btnConnect_onClick"
+            android:layout_below="@id/lblStatus"
+            android:layout_centerHorizontal="true"
+            android:visibility="gone"/>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/button_enable_bluetooth"
+            android:id="@+id/btnEnable"
+            android:onClick="btnEnable_onClick"
+            android:layout_below="@id/lblStatus"
+            android:layout_centerHorizontal="true"
+            android:visibility="gone"/>
+
+    </RelativeLayout>
+
+</RelativeLayout>
