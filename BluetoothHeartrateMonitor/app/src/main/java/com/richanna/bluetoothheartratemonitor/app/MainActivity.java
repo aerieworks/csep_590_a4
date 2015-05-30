@@ -19,7 +19,8 @@ import com.richanna.bluetoothheartratemonitor.R;
 import com.richanna.data.DataPoint;
 import com.richanna.data.DataProvider;
 import com.richanna.data.filters.SlidingWindowAverageFilter;
-import com.richanna.data.filters.ZeroCrossingFinder;
+import com.richanna.data.filters.TimeIntervalFilter;
+import com.richanna.data.filters.ZeroCrossingFilter;
 import com.richanna.data.visualization.DataSeries;
 import com.richanna.data.visualization.StreamingSeries;
 import com.richanna.events.Listener;
@@ -30,6 +31,32 @@ public class MainActivity extends ActionBarActivity {
 
   private static final int REQUEST_ENABLE_BLUETOOTH = 1;
 
+  private final MonitorDataSource.StatusCallback monitorStatusCallback =  new MonitorDataSource.StatusCallback() {
+    @Override
+    public void onStatusChange(int status) {
+      setStatus(status);
+    }
+  };
+
+  private final Listener<DataPoint<Long>> bpmListener = new Listener<DataPoint<Long>>() {
+    @Override
+    public void tell(final DataPoint<Long> eventData) {
+      runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+          final Long bpm = eventData.getValue();
+          if (bpm == null) {
+            lblHeartRate.setText(getResources().getString(R.string.default_heart_rate_value));
+            setStatus(R.string.status_detecting_heart_rate);
+          } else {
+            lblHeartRate.setText(Long.toString(bpm));
+            setStatus(R.string.status_ok);
+          }
+        }
+      });
+    }
+  };
+
   private TextView lblHeartRate;
   private RelativeLayout pnlStatus;
   private TextView lblStatus;
@@ -38,7 +65,7 @@ public class MainActivity extends ActionBarActivity {
   private XYPlot sensorPlot;
 
   private MonitorDataSource monitorDataSource;
-  private ZeroCrossingFinder zeroCrossingFinder;
+  private ZeroCrossingFilter zeroCrossingFilter;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -51,35 +78,15 @@ public class MainActivity extends ActionBarActivity {
     btnEnable = (Button)findViewById(R.id.btnEnable);
     btnConnect = (Button)findViewById(R.id.btnConnect);
 
-    monitorDataSource = new MonitorDataSource(this, new MonitorDataSource.StatusCallback() {
-      @Override
-      public void onStatusChange(int status) {
-        setStatus(status);
-      }
-    });
-    zeroCrossingFinder = new ZeroCrossingFinder(0.5f, 200, monitorDataSource);
+    monitorDataSource = new MonitorDataSource(this, monitorStatusCallback);
+    zeroCrossingFilter = new ZeroCrossingFilter(0.5f, 200, monitorDataSource);
 
     final DataProvider<DataPoint<Long>> bpmCalculator = new BpmCalculator(
-        new SlidingWindowAverageFilter(10, zeroCrossingFinder)
+        new SlidingWindowAverageFilter(10,
+          new TimeIntervalFilter<>(zeroCrossingFilter)
+        )
     );
-    bpmCalculator.addOnNewDatumListener(new Listener<DataPoint<Long>>() {
-      @Override
-      public void tell(final DataPoint<Long> eventData) {
-        runOnUiThread(new Runnable() {
-          @Override
-          public void run() {
-            final Long bpm = eventData.getValue();
-            if (bpm == null) {
-              lblHeartRate.setText(getResources().getString(R.string.default_heart_rate_value));
-              setStatus(R.string.status_detecting_heart_rate);
-            } else {
-              lblHeartRate.setText(Long.toString(bpm));
-              setStatus(R.string.status_ok);
-            }
-          }
-        });
-      }
-    });
+    bpmCalculator.addOnNewDatumListener(bpmListener);
 
     sensorPlot = initializeSensorPlot();
     final StreamingSeries sensorSeries = new StreamingSeries(monitorDataSource, "Pulse Sensor", R.xml.line_formatting_sensor_plot, getResources().getInteger(R.integer.max_points_sensor_plot));
@@ -145,7 +152,7 @@ public class MainActivity extends ActionBarActivity {
 
   private void setStatus(final int statusId) {
     if (statusId == R.string.status_detecting_heart_rate) {
-      zeroCrossingFinder.reset();
+      zeroCrossingFilter.reset();
     }
 
     runOnUiThread(new Runnable() {

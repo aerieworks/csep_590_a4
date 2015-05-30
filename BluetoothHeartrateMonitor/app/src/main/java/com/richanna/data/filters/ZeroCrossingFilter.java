@@ -7,7 +7,7 @@ import com.richanna.data.DataPoint;
 import com.richanna.data.DataProvider;
 import com.richanna.data.DataProviderBase;
 
-public class ZeroCrossingFinder extends DataProviderBase<DataPoint<Long>> implements DataFilter<DataPoint<Float>, DataPoint<Long>> {
+public class ZeroCrossingFilter extends DataProviderBase<DataPoint<Float>> implements DataFilter<DataPoint<Float>, DataPoint<Float>> {
   private static final String TAG = "ZeroCrossingFinder";
 
   private final float positiveThreshold;
@@ -15,9 +15,8 @@ public class ZeroCrossingFinder extends DataProviderBase<DataPoint<Long>> implem
   private int thresholdWindowIndex = 0;
   private float thresholdPeak = 0;
   private boolean isPositive = false;
-  private long lastCrossing = 0;
 
-  public ZeroCrossingFinder(final float positiveThreshold, final int thresholdWindowSize, final DataProvider<DataPoint<Float>> source) {
+  public ZeroCrossingFilter(final float positiveThreshold, final int thresholdWindowSize, final DataProvider<DataPoint<Float>> source) {
     this.positiveThreshold = positiveThreshold;
     thresholdWindow = new float[thresholdWindowSize];
     for (int i = 0; i < thresholdWindowSize; i++) {
@@ -34,7 +33,6 @@ public class ZeroCrossingFinder extends DataProviderBase<DataPoint<Long>> implem
     thresholdPeak = 0;
     thresholdWindowIndex = 0;
     isPositive = false;
-    lastCrossing = 0;
   }
 
   @Override
@@ -67,14 +65,8 @@ public class ZeroCrossingFinder extends DataProviderBase<DataPoint<Long>> implem
       }
     } else if (value < 0) {
       isPositive = false;
-      final long timestamp = eventData.getTimestamp();
-      if (lastCrossing > 0) {
-        final DataPoint<Long> dataPoint = new DataPoint<>(timestamp, (timestamp - lastCrossing) / 1000000l);
-        Log.i(TAG, String.format("Found zero crossing: %d", dataPoint.getValue()));
-        provideDatum(dataPoint);
-      }
-
-      lastCrossing = timestamp;
+      Log.i(TAG, String.format("Found zero crossing: %f", eventData.getValue()));
+      provideDatum(eventData);
     }
   }
 }

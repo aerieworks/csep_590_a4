@@ -12,6 +12,7 @@ public class BpmCalculator extends DataProviderBase<DataPoint<Long>> implements 
   private static final String TAG = "BpmCalculator";
   private static final long MIN_BPM = 30;
   private static final long MAX_BPM = 240;
+  private static final long NANOSECONDS_PER_MINUTE = 1000L * 1000L * 1000L * 60L; // NANO * MICRO * MILLI * SECONDS
 
   private Long previousBpm = null;
 
@@ -21,7 +22,7 @@ public class BpmCalculator extends DataProviderBase<DataPoint<Long>> implements 
 
   @Override
   public void tell(DataPoint<Long> eventData) {
-    Long bpm = 60000 / eventData.getValue();
+    Long bpm = NANOSECONDS_PER_MINUTE / eventData.getValue();
     Log.d(TAG, String.format("BPM: %d", bpm));
     if (bpm < MIN_BPM || bpm > MAX_BPM) {
       bpm = null;
