@@ -18,9 +18,10 @@ import com.androidplot.xy.XYPlot;
 import com.richanna.bluetoothheartratemonitor.R;
 import com.richanna.data.DataPoint;
 import com.richanna.data.DataProvider;
+import com.richanna.math.Numbers;
+import com.richanna.data.filters.PeakFilter;
 import com.richanna.data.filters.SlidingWindowAverageFilter;
 import com.richanna.data.filters.TimeIntervalFilter;
-import com.richanna.data.filters.ZeroCrossingFilter;
 import com.richanna.data.visualization.DataSeries;
 import com.richanna.data.visualization.StreamingSeries;
 import com.richanna.events.Listener;
@@ -65,7 +66,7 @@ public class MainActivity extends ActionBarActivity {
   private XYPlot sensorPlot;
 
   private MonitorDataSource monitorDataSource;
-  private ZeroCrossingFilter zeroCrossingFilter;
+  private DataProvider<Float> wavelengthDetector;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -79,11 +80,11 @@ public class MainActivity extends ActionBarActivity {
     btnConnect = (Button)findViewById(R.id.btnConnect);
 
     monitorDataSource = new MonitorDataSource(this, monitorStatusCallback);
-    zeroCrossingFilter = new ZeroCrossingFilter(0.5f, 200, monitorDataSource);
+    wavelengthDetector = new PeakFilter(20, 0.5f, monitorDataSource);
 
-    final DataProvider<DataPoint<Long>> bpmCalculator = new BpmCalculator(
-        new SlidingWindowAverageFilter(10,
-          new TimeIntervalFilter<>(zeroCrossingFilter)
+    final DataProvider<Long> bpmCalculator = new BpmCalculator(
+        new SlidingWindowAverageFilter<>(10, Numbers.I.converter,
+          new TimeIntervalFilter<>(wavelengthDetector)
         )
     );
     bpmCalculator.addOnNewDatumListener(bpmListener);
@@ -152,7 +153,7 @@ public class MainActivity extends ActionBarActivity {
 
   private void setStatus(final int statusId) {
     if (statusId == R.string.status_detecting_heart_rate) {
-      zeroCrossingFilter.reset();
+      wavelengthDetector.reset();
     }
 
     runOnUiThread(new Runnable() {

@@ -7,7 +7,7 @@ import com.richanna.data.DataPoint;
 import com.richanna.data.DataProvider;
 import com.richanna.data.DataProviderBase;
 
-public class BpmCalculator extends DataProviderBase<DataPoint<Long>> implements DataFilter<DataPoint<Long>, DataPoint<Long>> {
+public class BpmCalculator extends DataProviderBase<Long> implements DataFilter<Long, Long> {
 
   private static final String TAG = "BpmCalculator";
   private static final long MIN_BPM = 30;
@@ -16,7 +16,7 @@ public class BpmCalculator extends DataProviderBase<DataPoint<Long>> implements 
 
   private Long previousBpm = null;
 
-  public BpmCalculator(final DataProvider<DataPoint<Long>> source) {
+  public BpmCalculator(final DataProvider<Long> source) {
     source.addOnNewDatumListener(this);
   }
 

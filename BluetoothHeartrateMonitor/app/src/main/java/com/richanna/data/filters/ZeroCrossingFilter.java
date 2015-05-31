@@ -7,7 +7,7 @@ import com.richanna.data.DataPoint;
 import com.richanna.data.DataProvider;
 import com.richanna.data.DataProviderBase;
 
-public class ZeroCrossingFilter extends DataProviderBase<DataPoint<Float>> implements DataFilter<DataPoint<Float>, DataPoint<Float>> {
+public class ZeroCrossingFilter extends DataProviderBase<Float> implements DataFilter<Float, Float> {
   private static final String TAG = "ZeroCrossingFinder";
 
   private final float positiveThreshold;
@@ -16,7 +16,7 @@ public class ZeroCrossingFilter extends DataProviderBase<DataPoint<Float>> imple
   private float thresholdPeak = 0;
   private boolean isPositive = false;
 
-  public ZeroCrossingFilter(final float positiveThreshold, final int thresholdWindowSize, final DataProvider<DataPoint<Float>> source) {
+  public ZeroCrossingFilter(final float positiveThreshold, final int thresholdWindowSize, final DataProvider<Float> source) {
     this.positiveThreshold = positiveThreshold;
     thresholdWindow = new float[thresholdWindowSize];
     for (int i = 0; i < thresholdWindowSize; i++) {
@@ -26,6 +26,7 @@ public class ZeroCrossingFilter extends DataProviderBase<DataPoint<Float>> imple
     source.addOnNewDatumListener(this);
   }
 
+  @Override
   public void reset() {
     for (int i = 0; i < thresholdWindow.length; i++) {
       thresholdWindow[i] = 0;

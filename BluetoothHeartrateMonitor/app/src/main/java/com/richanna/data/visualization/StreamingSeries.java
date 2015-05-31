@@ -15,7 +15,7 @@ public class StreamingSeries extends DataSeries implements Listener<DataPoint<Fl
   private final List<Pair<Number, Number>> series;
   private int index = 0;
 
-  public StreamingSeries(final DataProvider<DataPoint<Float>> source, final String title, final int formatterId, final int maxSize) {
+  public StreamingSeries(final DataProvider<Float> source, final String title, final int formatterId, final int maxSize) {
     super(title, formatterId);
     this.maxSize = maxSize;
     series = new ArrayList<>(maxSize);

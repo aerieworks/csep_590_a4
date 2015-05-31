@@ -21,7 +21,7 @@ import java.nio.ByteOrder;
 import java.util.Set;
 import java.util.UUID;
 
-public class MonitorDataSource extends DataProviderBase<DataPoint<Float>> implements DataGenerator<DataPoint<Float>> {
+public class MonitorDataSource extends DataProviderBase<Float> implements DataGenerator<Float> {
 
   private static final String TAG = "MonitorDataSource";
 
@@ -151,6 +151,7 @@ public class MonitorDataSource extends DataProviderBase<DataPoint<Float>> implem
       final ByteBuffer buffer = ByteBuffer.wrap(characteristic.getValue(), 0, dataLength);
       buffer.order(ByteOrder.LITTLE_ENDIAN);
       final DataPoint<Float> dataPoint = new DataPoint<>(System.nanoTime(), buffer.getFloat());
+      //Log.i(TAG, String.format("Received value: %f @ %d", dataPoint.getValue(), dataPoint.getTimestamp()));
       provideDatum(dataPoint);
     }
   }

@@ -10,7 +10,7 @@ import com.richanna.data.DataProviderBase;
 /**
  * Generates data points whose values are the interval in nanoseconds between data points provided by the source data provider.
  */
-public class TimeIntervalFilter<TSource extends DataPoint<?>> extends DataProviderBase<DataPoint<Long>> implements DataFilter<TSource, DataPoint<Long>> {
+public class TimeIntervalFilter<TSource> extends DataProviderBase<Long> implements DataFilter<TSource, Long> {
 
   private static final String TAG = "TimeIntervalFilter";
 
@@ -21,7 +21,7 @@ public class TimeIntervalFilter<TSource extends DataPoint<?>> extends DataProvid
   }
 
   @Override
-  public void tell(TSource eventData) {
+  public void tell(DataPoint<TSource> eventData) {
     final long currentDataPointTimestamp = eventData.getTimestamp();
     Long interval = null;
     if (lastDataPointTimestamp != null) {
