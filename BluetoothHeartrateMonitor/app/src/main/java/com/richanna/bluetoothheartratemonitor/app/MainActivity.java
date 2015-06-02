@@ -1,6 +1,8 @@
 package com.richanna.bluetoothheartratemonitor.app;
 
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.support.v7.app.ActionBarActivity;
@@ -26,6 +28,8 @@ import com.richanna.data.filters.TimeIntervalFilter;
 import com.richanna.data.visualization.DataSeries;
 import com.richanna.data.visualization.StreamingSeries;
 import com.richanna.events.Listener;
+
+import org.apache.commons.lang3.StringUtils;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -152,20 +156,19 @@ public class MainActivity extends ActionBarActivity {
 
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
-    // Inflate the menu; this adds items to the action bar if it is present.
     getMenuInflater().inflate(R.menu.menu_main, menu);
     return true;
   }
 
   @Override
   public boolean onOptionsItemSelected(MenuItem item) {
-    // Handle action bar item clicks here. The action bar will
-    // automatically handle clicks on the Home/Up button, so long
-    // as you specify a parent activity in AndroidManifest.xml.
     int id = item.getItemId();
 
-    //noinspection SimplifiableIfStatement
-    if (id == R.id.action_settings) {
+    if (id == R.id.action_monitor_info) {
+      showMonitorInfo();
+      return true;
+    } else if (id == R.id.action_select_monitor) {
+      selectMonitorDevice();
       return true;
     }
 
@@ -209,6 +212,39 @@ public class MainActivity extends ActionBarActivity {
     plot.addSeries(series, formatter);
   }
 
+  private void showMonitorInfo() {
+    final int messageId;
+
+    final SharedPreferences preferences = getDevicePreferences();
+    final String deviceName = preferences.getString(getString(R.string.pref_device_name), null);
+    final String deviceAddress = preferences.getString(getString(R.string.pref_device_address), null);
+    if (StringUtils.isBlank(deviceName) || StringUtils.isBlank(deviceAddress)) {
+      messageId = R.string.monitor_info_none_selected;
+    } else {
+      messageId = R.string.monitor_info_name_and_address;
+    }
+
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.title_monitor_info)
+        .setMessage(getString(messageId, deviceName, deviceAddress))
+        .setPositiveButton(android.R.string.ok, null)
+        .show();
+  }
+
+  private void selectMonitorDevice() {
+    final SharedPreferences.Editor editor = getDevicePreferences().edit();
+    editor.remove(getString(R.string.pref_device_name));
+    editor.remove(getString(R.string.pref_device_address));
+    editor.commit();
+
+    Intent selectMonitor = new Intent(this, MonitorSelectActivity.class);
+    startActivityForResult(selectMonitor, REQUEST_SELECT_MONITOR);
+  }
+
+  private SharedPreferences getDevicePreferences() {
+    return getSharedPreferences(getString(R.string.pref_file_device_preferences), Context.MODE_PRIVATE);
+  }
+
   public void btnEnable_onClick(View view) {
     Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
     startActivityForResult(enableBluetooth, REQUEST_ENABLE_BLUETOOTH);
@@ -219,7 +255,6 @@ public class MainActivity extends ActionBarActivity {
   }
 
   public void btnSelect_onClick(View view) {
-    Intent selectMonitor = new Intent(this, MonitorSelectActivity.class);
-    startActivityForResult(selectMonitor, REQUEST_SELECT_MONITOR);
+    selectMonitorDevice();
   }
 }
