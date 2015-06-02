@@ -2,6 +2,7 @@ package com.richanna.bluetoothheartratemonitor.app;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -30,7 +31,8 @@ import com.richanna.events.Listener;
 public class MainActivity extends ActionBarActivity {
   private static final String TAG = "MainActivity";
 
-  private static final int REQUEST_ENABLE_BLUETOOTH = 1;
+  public static final int REQUEST_ENABLE_BLUETOOTH = 1;
+  public static final int REQUEST_SELECT_MONITOR = 2;
 
   private final MonitorDataSource.StatusCallback monitorStatusCallback =  new MonitorDataSource.StatusCallback() {
     @Override
@@ -63,6 +65,7 @@ public class MainActivity extends ActionBarActivity {
   private TextView lblStatus;
   private Button btnEnable;
   private Button btnConnect;
+  private Button btnSelect;
   private XYPlot sensorPlot;
 
   private MonitorDataSource monitorDataSource;
@@ -78,6 +81,7 @@ public class MainActivity extends ActionBarActivity {
     lblStatus = (TextView)findViewById(R.id.lblStatus);
     btnEnable = (Button)findViewById(R.id.btnEnable);
     btnConnect = (Button)findViewById(R.id.btnConnect);
+    btnSelect = (Button)findViewById(R.id.btnSelect);
 
     monitorDataSource = new MonitorDataSource(this, monitorStatusCallback);
     wavelengthDetector = new PeakFilter(20, 0.5f, monitorDataSource);
@@ -124,6 +128,23 @@ public class MainActivity extends ActionBarActivity {
           Log.i(TAG, "Bluetooth not enabled, cannot connect to device.");
         }
         break;
+      case REQUEST_SELECT_MONITOR:
+        if (resultCode == RESULT_OK) {
+          final String deviceName = data.getStringExtra(getString(R.string.selected_monitor_device_name));
+          final String deviceAddress = data.getStringExtra(getString(R.string.selected_monitor_device_address));
+          Log.i(TAG, String.format("Monitor selected: %s, %s.  Will try to connect.", deviceName, deviceAddress));
+
+          final SharedPreferences preferences = getSharedPreferences(getString(R.string.pref_file_device_preferences), MODE_PRIVATE);
+          final SharedPreferences.Editor editor = preferences.edit();
+          editor.putString(getString(R.string.pref_device_name), deviceName);
+          editor.putString(getString(R.string.pref_device_address), deviceAddress);
+          editor.commit();
+
+          monitorDataSource.resume();
+        } else {
+          Log.i(TAG, "Monitor not selected.");
+        }
+        break;
       default:
         Log.w(TAG, String.format("Unrecognized request code in onActivityResult: %d", requestCode));
     }
@@ -163,7 +184,8 @@ public class MainActivity extends ActionBarActivity {
         lblStatus.setText(getResources().getString(statusId));
 
         btnEnable.setVisibility(statusId == R.string.status_bluetooth_disabled ? View.VISIBLE : View.GONE);
-        btnConnect.setVisibility(statusId == R.string.status_monitor_disconnected ? View.VISIBLE : View.GONE);
+        btnConnect.setVisibility(statusId == R.string.status_monitor_not_found ? View.VISIBLE : View.GONE);
+        btnSelect.setVisibility(statusId == R.string.status_monitor_not_selected ? View.VISIBLE : View.GONE);
       }
     });
   }
@@ -194,5 +216,10 @@ public class MainActivity extends ActionBarActivity {
 
   public void btnConnect_onClick(View view) {
     monitorDataSource.resume();
+  }
+
+  public void btnSelect_onClick(View view) {
+    Intent selectMonitor = new Intent(this, MonitorSelectActivity.class);
+    startActivityForResult(selectMonitor, REQUEST_SELECT_MONITOR);
   }
 }

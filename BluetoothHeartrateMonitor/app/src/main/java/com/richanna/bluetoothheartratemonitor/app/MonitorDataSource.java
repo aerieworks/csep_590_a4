@@ -9,12 +9,15 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import com.richanna.bluetoothheartratemonitor.R;
 import com.richanna.data.DataGenerator;
 import com.richanna.data.DataPoint;
 import com.richanna.data.DataProviderBase;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -73,9 +76,18 @@ public class MonitorDataSource extends DataProviderBase<Float> implements DataGe
       return;
     }
 
+    final SharedPreferences preferences = context.getSharedPreferences(context.getString(R.string.pref_file_device_preferences), Context.MODE_PRIVATE);
+    final String deviceAddress = preferences.getString(context.getString(R.string.pref_device_address), null);
+    if (StringUtils.isBlank(deviceAddress)) {
+      Log.i(TAG, "connect() called, but the monitor device has not been identified.");
+      updateStatus(R.string.status_monitor_not_selected);
+      return;
+    }
+
     final Set<BluetoothDevice> devices = adapter.getBondedDevices();
     for (final BluetoothDevice device : devices) {
-      if (DEVICE_NAME.equals(device.getName())) {
+
+      if (deviceAddress.equals(device.getAddress())) {
         Log.i(TAG, "Attempting to connect to monitor...");
         gattConnection = device.connectGatt(context, false, gattClient);
         updateStatus(R.string.status_waiting_for_monitor);
@@ -83,8 +95,8 @@ public class MonitorDataSource extends DataProviderBase<Float> implements DataGe
       }
     }
 
-    Log.i(TAG, "Monitor has not been paired to device.");
-    updateStatus(R.string.status_monitor_disconnected);
+    Log.i(TAG, "Monitor not found.");
+    updateStatus(R.string.status_monitor_not_found);
   }
 
   private void disconnect() {
@@ -99,7 +111,7 @@ public class MonitorDataSource extends DataProviderBase<Float> implements DataGe
       gattConnection = null;
 
       if (adapter.isEnabled()) {
-        updateStatus(R.string.status_monitor_disconnected);
+        updateStatus(R.string.status_monitor_not_found);
       } else {
         updateStatus(R.string.status_bluetooth_disabled);
       }
