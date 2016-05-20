@@ -131,28 +131,6 @@ public class MonitorSelectActivity extends ListActivity {
     finish();
   }
 
-  /*@Override
-  public boolean onCreateOptionsMenu(Menu menu) {
-    // Inflate the menu; this adds items to the action bar if it is present.
-    getMenuInflater().inflate(R.menu.menu_monitor_select, menu);
-    return true;
-  }
-
-  @Override
-  public boolean onOptionsItemSelected(MenuItem item) {
-    // Handle action bar item clicks here. The action bar will
-    // automatically handle clicks on the Home/Up button, so long
-    // as you specify a parent activity in AndroidManifest.xml.
-    int id = item.getItemId();
-
-    //noinspection SimplifiableIfStatement
-    if (id == R.id.action_settings) {
-      return true;
-    }
-
-    return super.onOptionsItemSelected(item);
-  }*/
-
   private class BleDeviceListAdapter extends BaseAdapter {
 
     private final List<BluetoothDevice> devices = new ArrayList<>();
@@ -184,16 +162,20 @@ public class MonitorSelectActivity extends ListActivity {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
       final BluetoothDevice device = getDevice(position);
-      if (device == null) {
-        Log.e(TAG, String.format("Device at position %d is null.", position));
-      } else {
-        Log.i(TAG, String.format("Getting view for device %d: %s, %s", position, device.getName(), device.getAddress()));
-      }
+      Log.i(TAG, String.format("Getting view for device %d: %s, %s", position, device.getName(), device.getAddress()));
 
+      final int textColor = getResources().getColor(android.R.color.primary_text_dark);
       final LayoutInflater inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
       final View row = inflater.inflate(android.R.layout.two_line_list_item, parent, false);
-      ((TextView)row.findViewById(android.R.id.text1)).setText(device.getName());
-      ((TextView)row.findViewById(android.R.id.text2)).setText(device.getAddress());
+
+      final TextView txtName = (TextView)row.findViewById(android.R.id.text1);
+      txtName.setText(device.getName());
+      txtName.setTextColor(textColor);
+
+      final TextView txtAddress = (TextView)row.findViewById(android.R.id.text2);
+      txtAddress.setText(device.getAddress());
+      txtAddress.setTextColor(textColor);
+
       return row;
     }
   }

@@ -2,8 +2,10 @@
       xmlns:app="http://schemas.android.com/apk/res-auto"
       xmlns:tools="http://schemas.android.com/tools"
       tools:context=".MainActivity">
-    <item android:id="@+id/action_settings"
-          android:title="@string/action_settings"
-          android:orderInCategory="100"
+    <item android:id="@+id/action_monitor_info"
+          android:title="@string/action_monitor_info"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_select_monitor"
+          android:title="@string/action_select_monitor"
           app:showAsAction="never"/>
 </menu>
